@@ -21,7 +21,8 @@
     {
       "name": "q8888620002",
       "email": "q8888620002@hotmail.com"
-    }, {
+    },
+    {
       "name": "River",
       "email": "revir.qing@gmail.com"
     }
@@ -32,11 +33,14 @@
   },
   "readmeFilename": "README.md",
   "dependencies": {
-    "elasticsearch": "^12.1.3",
-    "lru-cache": "^2.5.0",
-    "underscore.string": "^2.4.0"
+    "elasticsearch": "*",
+    "lru-cache": "*",
+    "underscore.string": "*"
   },
   "nbbpm": {
     "compatibility": "^1.x.x"
+  },
+  "devDependencies": {
+    "jasmine": "^3.1.0"
   }
 }

@@ -18,10 +18,7 @@ var db = module.parent.require("./database"),
       return "\\" + match;
     });
   },
-  // client = new elasticsearch.Client({
-  //   host: "localhost:9200"
-  //   // log: 'trace'
-  // }),
+
   // this config dosen't work for newer version of elasticsearch api
   Elasticsearch = {
     /*
@@ -495,26 +492,19 @@ Elasticsearch.add = function(payload, callback) {
   );
 };
 
-Elasticsearch.remove = function(pid, callback) {
-  if (!Elasticsearch.client) {
-    return;
-  }
-
-  // Make sure id is an integer
-  if (_.isString(pid)) {
-    pid = parseInt(pid, 10);
-  }
+Elasticsearch.remove = function(post, callback) {
+  // var post = postData && postData.post || undefined
 
   Elasticsearch.client.delete(
     {
       index: Elasticsearch.config.index_name,
       type: Elasticsearch.config.post_type,
-      id: pid
+      id: post.pid
     },
     function(err, obj) {
       if (err) {
         winston.error(
-          "[plugin/elasticsearch] Could not remove post " + pid + " from index"
+          "[plugin/elasticsearch] Could not remove post " + post.pid + " from index"
         );
       }
 
@@ -551,35 +541,19 @@ Elasticsearch.flush = function(req, res) {
 
 Elasticsearch.post = {};
 Elasticsearch.post.save = function(postData) {
-  if (!parseInt(Elasticsearch.config.enabled, 10)) {
-    return;
-  }
-
-  Elasticsearch.indexPost(postData);
+  var post = postData && postData.post || undefined
+  Elasticsearch.indexPost(post);
 };
 
-Elasticsearch.post.delete = function(pid, callback) {
-  if (!parseInt(Elasticsearch.config.enabled, 10)) {
-    return;
-  }
-
-  Elasticsearch.remove(pid);
-
-  if (typeof callback === "function") {
-    if (!parseInt(Elasticsearch.config.enabled, 10)) {
-      return;
-    }
-
-    callback();
-  }
+Elasticsearch.post.delete = function(postData, callback = function(){}) {
+  var post = postData && postData.post || undefined
+  Elasticsearch.remove(post);
+  callback();
 };
 
 Elasticsearch.post.restore = function(postData) {
-  if (!parseInt(Elasticsearch.config.enabled, 10)) {
-    return;
-  }
-
-  Elasticsearch.indexPost(postData);
+  var post = postData && postData.post || undefined
+  Elasticsearch.indexPost(post);
 };
 
 Elasticsearch.post.edit = Elasticsearch.post.restore;
@@ -665,6 +639,7 @@ Elasticsearch.indexTopic = function(topicObj, callback) {
           return callback(err);
         }
       }
+    
 
       // Also index the title into the main post of this topic
       for (var x = 0, numPids = payload.length; x < numPids; x++) {
@@ -736,8 +711,8 @@ Elasticsearch.deindexTopic = function(tid) {
   );
 };
 
-Elasticsearch.indexPost = function(postData, callback) {
-  if (!postData || !postData.pid) {
+Elasticsearch.indexPost = function(post, callback) {
+  if (!post || !post.pid) {
     if (typeof callback === "function") {
       return callback(new Error("Post data is null or missing pid."));
     } else {
@@ -746,19 +721,15 @@ Elasticsearch.indexPost = function(postData, callback) {
   }
 
   var payload = {
-    id: postData.pid
+    id: post.pid,
+    content: post.content
   };
 
-  // We are allowing posts with null content to be indexed.
-  if (postData.content) {
-    payload.content = postData.content;
-  }
 
+  Elasticsearch.add(payload);
   if (typeof callback === "function") {
     callback(undefined, payload);
-  } else {
-    Elasticsearch.add(payload);
-  }
+  } 
 };
 
 Elasticsearch.deindexPost = Elasticsearch.post.delete;

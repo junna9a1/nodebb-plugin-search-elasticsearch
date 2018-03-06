@@ -282,6 +282,7 @@ Elasticsearch.search = function(data, callback) {
     if (err) {
       callback(err);
     } else if (obj && obj.hits && obj.hits.hits && obj.hits.hits.length > 0) {
+      console.log(obj.hits)
       var payload = obj.hits.hits.map(function(result) {
         // return the correct post id
         if (data.index === "topic") {

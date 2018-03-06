@@ -1,0 +1,40 @@
+{
+  "settings": {
+    "analysis": {
+      "tokenizer": {
+        "kuromoji": {
+          "type": "kuromoji_tokenizer",
+          "mode": "search"
+        }
+      },
+      "analyzer": {
+        "kuromoji-analyzer": {
+          "type": "custom",
+          "tokenizer": "kuromoji",
+          "filter": [
+            "ja_stop",
+            "kuromoji_part_of_speech",
+            "lowercase"
+          ],
+          "char_filter": [
+            "html_strip"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "posts": {
+      "properties": {
+        "title": {
+          "type": "text",
+          "analyzer": "kuromoji-analyzer"
+        },
+        "content": {
+          "type": "text",
+          "analyzer": "kuromoji-analyzer"
+        }
+      }
+    }
+  }
+}

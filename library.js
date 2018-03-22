@@ -135,6 +135,7 @@ Elasticsearch.getNotices = function(notices, callback) {
 Elasticsearch.getSettings = function(callback) {
   db.getObject("settings:elasticsearch", function(err, config) {
     if (!err) {
+      config = config || {}
       config = Object.keys(config)
       .filter( key => config[key] &&  !/^\s*$/.test(config[key]))
       .reduce( (res, key) => (res[key] = config[key], res), {} );

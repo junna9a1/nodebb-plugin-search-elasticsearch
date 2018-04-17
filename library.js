@@ -18,7 +18,6 @@ var db = module.parent.require("./database"),
       return "\\" + match;
     });
   },
-
   // this config dosen't work for newer version of elasticsearch api
   Elasticsearch = {
     /*
@@ -135,10 +134,10 @@ Elasticsearch.getNotices = function(notices, callback) {
 Elasticsearch.getSettings = function(callback) {
   db.getObject("settings:elasticsearch", function(err, config) {
     if (!err) {
-      config = config || {}
+      config = config || {};
       config = Object.keys(config)
-      .filter( key => config[key] &&  !/^\s*$/.test(config[key]))
-      .reduce( (res, key) => (res[key] = config[key], res), {} );
+        .filter(key => config[key] && !/^\s*$/.test(config[key]))
+        .reduce((res, key) => ((res[key] = config[key]), res), {});
       Elasticsearch.config = Object.assign(Elasticsearch.config, config);
     } else {
       winston.error(
@@ -241,6 +240,9 @@ Elasticsearch.adminMenu = function(custom_header, callback) {
 };
 
 Elasticsearch.search = function(data, callback) {
+  if (!data.content) {
+    return callback(null, data);
+  }
   if (Elasticsearch.checkConflict()) {
     // The dbsearch plugin was detected, abort search!
     winston.warn(
@@ -249,14 +251,12 @@ Elasticsearch.search = function(data, callback) {
     return callback(null, data);
   }
   var queryMatch = {
+    title: escapeSpecialChars(data.content),
     content: escapeSpecialChars(data.content)
   };
-
-  if (data.index === "topic") {
-    queryMatch = {
-      title: escapeSpecialChars(data.content)
-    };
-  }
+  var content = escapeSpecialChars(data.content)
+  var query = {multi_match: {query: content, fields: ["title", "content"]}};
+  if (data.index === "topic") query = {match: {title: content}};
 
   /*
 	if (cache.has(data.query)) {
@@ -271,9 +271,7 @@ Elasticsearch.search = function(data, callback) {
   var query = {
     index: Elasticsearch.config.index_name,
     body: {
-      query: {
-        match: queryMatch
-      },
+      query: query,
       from: 0,
       size: 20
     }
@@ -283,15 +281,12 @@ Elasticsearch.search = function(data, callback) {
     if (err) {
       callback(err);
     } else if (obj && obj.hits && obj.hits.hits && obj.hits.hits.length > 0) {
-      console.log(obj.hits)
       var payload = obj.hits.hits.map(function(result) {
-        // return the correct post id
         if (data.index === "topic") {
           return parseInt(result._source.tid, 10);
         }
         return parseInt(result._source.id, 10);
       });
-
       callback(null, payload);
       //cache.set(data.query, payload);
     } else {
@@ -471,8 +466,6 @@ Elasticsearch.add = function(payload, callback) {
       index: Elasticsearch.config.index_name
     },
     function(err, obj) {
-      console.log(obj.items[0].index)
-
       if (err) {
         if (payload.length === 1) {
           winston.error(
@@ -506,7 +499,9 @@ Elasticsearch.remove = function(post, callback) {
     function(err, obj) {
       if (err) {
         winston.error(
-          "[plugin/elasticsearch] Could not remove post " + post.pid + " from index"
+          "[plugin/elasticsearch] Could not remove post " +
+            post.pid +
+            " from index"
         );
       }
 
@@ -543,18 +538,18 @@ Elasticsearch.flush = function(req, res) {
 
 Elasticsearch.post = {};
 Elasticsearch.post.save = function(postData) {
-  var post = postData && postData.post || undefined
+  var post = (postData && postData.post) || undefined;
   Elasticsearch.indexPost(post);
 };
 
-Elasticsearch.post.delete = function(postData, callback = function(){}) {
-  var post = postData && postData.post || undefined
+Elasticsearch.post.delete = function(postData, callback = function() {}) {
+  var post = (postData && postData.post) || undefined;
   Elasticsearch.remove(post);
   callback();
 };
 
 Elasticsearch.post.restore = function(postData) {
-  var post = postData && postData.post || undefined
+  var post = (postData && postData.post) || undefined;
   Elasticsearch.indexPost(post);
 };
 
@@ -624,7 +619,7 @@ Elasticsearch.indexTopic = function(topicObj, callback) {
           pids.unshift(topicObj.mainPid);
         }
 
-        posts.getPostsFields(pids, ["pid", "content"], next);
+        posts.getPostsFields(pids, ["pid", "content", "title"], next);
       },
       function(posts, next) {
         async.map(posts, Elasticsearch.indexPost, next);
@@ -641,19 +636,21 @@ Elasticsearch.indexTopic = function(topicObj, callback) {
           return callback(err);
         }
       }
-    
 
-      // Also index the title into the main post of this topic
-      for (var x = 0, numPids = payload.length; x < numPids; x++) {
-        if (payload[x]) {
-          if (payload[x].id === topicObj.mainPid) {
-            payload[x].title = topicObj.title;
+      payload = payload.map(post => {
+        post.tid = topicObj.tid;
+        post.title = topicObj.title;
+        return post;
+      });
 
-            // add tid to main post, so search topic could get tid.
-            payload[x].tid = topicObj.tid;
-          }
-        }
-      }
+      // for (var x = 0, numPids = payload.length; x < numPids; x++) {
+      //   if (payload[x]) {
+      //     if (payload[x].id === topicObj.mainPid) {
+      //       payload[x].title = topicObj.title;
+      //       payload[x].tid = topicObj.tid;
+      //     }
+      //   }
+      // }
 
       if (typeof callback === "function") {
         // If callback is defined, then we don't index, but rather return the payload?!
@@ -727,11 +724,10 @@ Elasticsearch.indexPost = function(post, callback) {
     content: post.content
   };
 
-
   Elasticsearch.add(payload);
   if (typeof callback === "function") {
     callback(undefined, payload);
-  } 
+  }
 };
 
 Elasticsearch.deindexPost = Elasticsearch.post.delete;

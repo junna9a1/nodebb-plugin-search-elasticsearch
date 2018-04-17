@@ -5,7 +5,10 @@
   "main": "library.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/joe1chen/nodebb-plugin-search-elasticsearch"
+    "url": "https://github.com/junna9a1/nodebb-plugin-search-elasticsearch"
+  },
+  "scripts": {
+    "watch": "watch"
   },
   "keywords": [
     "nodebb",
@@ -14,22 +17,14 @@
     "search"
   ],
   "author": {
-    "name": "joe1chen",
-    "email": "joseph.chen@gmail.com"
+    "name": "junna9a1",
+    "email": "junna9a1@gmail.com"
   },
   "contributors": [
-    {
-      "name": "q8888620002",
-      "email": "q8888620002@hotmail.com"
-    },
-    {
-      "name": "River",
-      "email": "revir.qing@gmail.com"
-    }
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/joe1chen/nodebb-plugin-search-elasticsearch/issues"
+    "url": "https://github.com/junna9a1/nodebb-plugin-search-elasticsearch/issues"
   },
   "readmeFilename": "README.md",
   "dependencies": {

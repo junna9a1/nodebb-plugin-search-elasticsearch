@@ -254,9 +254,9 @@ Elasticsearch.search = function(data, callback) {
     title: escapeSpecialChars(data.content),
     content: escapeSpecialChars(data.content)
   };
-  var content = escapeSpecialChars(data.content)
-  var query = {multi_match: {query: content, fields: ["title", "content"]}};
-  if (data.index === "topic") query = {match: {title: content}};
+  var content = escapeSpecialChars(data.content);
+  var query = { multi_match: { query: content, fields: ["title", "content"] } };
+  if (data.index === "topic") query = { match: { title: content } };
 
   /*
 	if (cache.has(data.query)) {
@@ -429,62 +429,73 @@ Elasticsearch.add = function(payload, callback) {
 	 { delete: { _index: 'myindex', _type: 'mytype', _id: 3 } },
 	 // no document needed for this delete
 	]
-	*/
+  */
 
   var body = [];
-  _.each(payload, function(item) {
-    if (item && item.id) {
-      // Make sure id is an integer
-      var itemId = parseInt(item.id, 10);
-      item.id = itemId;
-
-      // Action
-      body.push({
-        index: {
-          /*_index: Elasticsearch.config.index_name, */ // We'll set it in bulk()
-          /*_type: Elasticsearch.config.post_type, */ // We'll set it in bulk()
-          _id: itemId
-        }
-      });
-
-      // Document
-      body.push(item);
-    }
-  });
-
-  if (0 === body.length) {
-    if (callback) {
-      return callback(null);
-    }
-    return;
-  }
-
-  Elasticsearch.client.bulk(
-    {
-      body: body,
-      type: Elasticsearch.config.post_type,
-      index: Elasticsearch.config.index_name
-    },
-    function(err, obj) {
-      if (err) {
-        if (payload.length === 1) {
-          winston.error(
-            "[plugin/elasticsearch] Could not index post " +
-              payload[0].id +
-              ", error: " +
-              err.message
-          );
-        } else {
-          winston.error(
-            "[plugin/elasticsearch] Could not index posts, error: " +
-              err.message
-          );
-        }
-      } else if (typeof callback === "function") {
-        callback.apply(arguments);
+  Promise.all(
+    payload.map(item =>
+      Promise.resolve()
+        .then(() => {
+          if (item.tid) {
+            var tid = parseInt(item.tid, 10);
+            return new Promise((resolve, reject) => {
+              topics.getTopicField(tid, "title", function (err, value){
+                resolve(value)
+              });
+            })
+          } else {
+            return Promise.resolve();
+          }
+        })
+        .then(title => {
+          if (item && item.id) {
+            if (title) item.title = title;
+            var itemId = parseInt(item.id, 10);
+            item.id = itemId;
+            body.push({
+              index: {
+                _id: itemId
+              }
+            });
+            body.push(item);
+          }
+          return Promise.resolve();
+        })
+    )
+  ).then(() => {
+    if (0 === body.length) {
+      if (callback) {
+        return callback(null);
       }
+      return;
     }
-  );
+    Elasticsearch.client.bulk(
+      {
+        body: body,
+        type: Elasticsearch.config.post_type,
+        index: Elasticsearch.config.index_name
+      },
+      function(err, obj) {
+        if (err) {
+          if (payload.length === 1) {
+            winston.error(
+              "[plugin/elasticsearch] Could not index post " +
+                payload[0].id +
+                ", error: " +
+                err.message
+            );
+          } else {
+            winston.error(
+              "[plugin/elasticsearch] Could not index posts, error: " +
+                err.message
+            );
+          }
+        } else if (typeof callback === "function") {
+          callback.apply(arguments);
+        }
+      }
+    );
+  });
 };
 
 Elasticsearch.remove = function(post, callback) {
@@ -536,20 +547,27 @@ Elasticsearch.flush = function(req, res) {
   );
 };
 
+var normalizePost = function(postData) {
+  if (typeof postData !== "object") return { pid: postData };
+  if (postData && postData.post) return postData.post;
+  if (postData) return postData;
+  return undefined;
+};
+
 Elasticsearch.post = {};
 Elasticsearch.post.save = function(postData) {
-  var post = (postData && postData.post) || undefined;
+  var post = normalizePost(postData);
   Elasticsearch.indexPost(post);
 };
 
 Elasticsearch.post.delete = function(postData, callback = function() {}) {
-  var post = (postData && postData.post) || undefined;
+  var post = normalizePost(postData);
   Elasticsearch.remove(post);
   callback();
 };
 
 Elasticsearch.post.restore = function(postData) {
-  var post = (postData && postData.post) || undefined;
+  var post = normalizePost(postData);
   Elasticsearch.indexPost(post);
 };
 
@@ -721,7 +739,8 @@ Elasticsearch.indexPost = function(post, callback) {
 
   var payload = {
     id: post.pid,
-    content: post.content
+    content: post.content,
+    tid: post.tid
   };
 
   Elasticsearch.add(payload);

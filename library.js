@@ -273,7 +273,7 @@ Elasticsearch.search = function(data, callback) {
     body: {
       query: query,
       from: 0,
-      size: 20
+      size: 500
     }
   };
   // changing the client obj
